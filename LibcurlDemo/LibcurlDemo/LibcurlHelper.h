@@ -67,7 +67,7 @@ public:
     // 下载数据
     int Get(const HttpPara& paraHttp, std::string& strResponse);
     // 下载文件
-    int DownloadFile(const HttpPara& paraHttp, std::string& strResponse, const std::string& strFile = "");
+    int DownloadFile(const HttpPara& paraHttp, const std::string& strFile = "");
     // 下载大文件
     int DownloadBigFile(const HttpPara& paraHttp, const std::string& strPath = "", const std::string& strFileName = "", int nThread = 1);
 
@@ -78,6 +78,7 @@ private:
     std::string generate_filename(const std::string& strUrl, const std::string& strCustonFile, const std::string& strFileInfo);
     void do_download(void *pData);
     void notify_download();
+    long get_local_file_length(const std::string& strFile);
 
 private:
     bool m_bDebug;

@@ -1,6 +1,7 @@
 #include "LibcurlHelper.h"
 #include "RaiiHelper.h"
 #include <fstream>
+#include <io.h>
 
 RaiiHelper g_curlHandle
 (
@@ -105,8 +106,7 @@ int64_t LibcurlHelper::OnMultiWriteFile(void *ptr, size_t size, size_t nMenmb, v
 int LibcurlHelper::OnProcess(void *ptr, double nTotalToDownload, double nAlreadyDownload
     , double nTotalUploadSize, double nAlreadyUpload)
 {
-    if (nTotalToDownload <= 0)
-        return 0;
+    if (nTotalToDownload <= 0)return 0;
     CURL *pCurl = static_cast<CURL *>(ptr);
     char szTimeInfo[kSpeedInfo] = { 0 };
     double nSpeed;
@@ -154,11 +154,8 @@ int LibcurlHelper::OnProcess(void *ptr, double nTotalToDownload, double nAlready
 
     int nPersent = (int)(nAlreadyDownload / nTotalToDownload * 100);
     printf("[下载进度]:%0d%%\n", nPersent);
+    // return bigger than 0, it means pause
     return 0;
-}
-
-size_t get_size_struct(void* ptr, size_t size, size_t nmemb, void* data) {
-    return (size_t)(size * nmemb);
 }
 
 LibcurlHelper::LibcurlHelper()
@@ -174,12 +171,9 @@ LibcurlHelper::~LibcurlHelper()
 
 int LibcurlHelper::Post(const HttpPara& paraHttp, const std::string& strData, std::string& strResponse)
 {
-    //初始化curl，生成CURL pCurl指针
     CURL *pCurl = curl_easy_init();
     if (nullptr == pCurl)
-    {
         return CURLE_FAILED_INIT;
-    }
     if (m_bDebug)
     {
         curl_easy_setopt(pCurl,CURLOPT_VERBOSE, 1);	//调试信息
@@ -291,9 +285,7 @@ int LibcurlHelper::Get(const HttpPara& paraHttp, std::string& strResponse)
     CURLcode res;
     CURL *pCurl = curl_easy_init();
     if (nullptr == pCurl)
-    {
         return CURLE_FAILED_INIT;
-    }
     if (m_bDebug)
     {
         curl_easy_setopt(pCurl,CURLOPT_VERBOSE, 1);
@@ -320,14 +312,12 @@ int LibcurlHelper::Get(const HttpPara& paraHttp, std::string& strResponse)
     @ 开始下载
     */
     if (res = curl_easy_perform(pCurl), CURLE_OK != res)
-    {
         printf("%s\n", curl_easy_strerror(res));
-    }
     curl_easy_cleanup(pCurl);
     return res;
 }
 
-int LibcurlHelper::DownloadFile(const HttpPara& paraHttp, std::string& strResponse, const std::string& strFile)
+int LibcurlHelper::DownloadFile(const HttpPara& paraHttp, const std::string& strFile)
 {
     std::string strRemoteFile;
     int64_t nFileLength = get_download_file_length(paraHttp, strRemoteFile);
@@ -357,13 +347,6 @@ int LibcurlHelper::DownloadFile(const HttpPara& paraHttp, std::string& strRespon
     // get speed info by easy-handle
     curl_easy_setopt(pCurl, CURLOPT_XFERINFODATA, pCurl);
     curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1L);
-    if (CURLE_OK != res)
-    {
-        fclose(fp);
-        curl_easy_cleanup(pCurl);
-        printf("%s\n", curl_easy_strerror(res));
-        return -1;
-    }
     //开始执行请求
     printf("Downloadind file...\n");
     res = curl_easy_perform(pCurl);
@@ -418,7 +401,8 @@ int LibcurlHelper::DownloadBigFile(const HttpPara& paraHttp, const std::string& 
         curl_easy_setopt(pCurl, CURLOPT_URL, paraHttp.strUrl.c_str());
         curl_easy_setopt(pCurl, CURLOPT_SSL_VERIFYPEER, false);
         curl_easy_setopt(pCurl, CURLOPT_SSL_VERIFYHOST, false);
-        // set user and password info with user:password format, it passed in more situation
+        // set user and password info with user:password format, 
+        // it passed in more situation
         //curl_easy_setopt(pCurl, CURLOPT_USERNAME, paraHttp.strUser.c_str());
         //curl_easy_setopt(pCurl, CURLOPT_PASSWORD, paraHttp.strPassword.c_str());
         std::string strUserInfo = paraHttp.strUser + ":" + paraHttp.strPassword;
@@ -432,7 +416,8 @@ int LibcurlHelper::DownloadBigFile(const HttpPara& paraHttp, const std::string& 
         curl_easy_setopt(pCurl, CURLOPT_NOSIGNAL, 1L);
         curl_easy_setopt(pCurl, CURLOPT_LOW_SPEED_LIMIT, 1L);
         curl_easy_setopt(pCurl, CURLOPT_LOW_SPEED_TIME, 5L);
-
+        // resume download file
+        //curl_easy_setopt(pCurl, CURLOPT_RESUME_FROM_LARGE, get_local_file_length(localFile));
         std::thread(std::bind(&LibcurlHelper::do_download, this, (void*)pNode)).detach();
     }
     while (m_nPart > 0)
@@ -549,4 +534,20 @@ void LibcurlHelper::notify_download()
         printf("Download finished\n");
     }
     fclose(m_pFout);
+}
+
+long LibcurlHelper::get_local_file_length(const std::string& strFile)
+{
+    long nLength = 0;
+    if (0 != _access(strFile.c_str(), 0))
+        return nLength;
+    std::fstream fin(strFile.c_str(), std::ios::binary | std::ios::in);
+    if (fin.is_open())
+    {
+        fin.seekg(0, std::ios::end);
+        std::streampos size = fin.tellp();
+        fin.close();
+        nLength = size;
+    }
+    return nLength;
 }

@@ -83,10 +83,10 @@ void UploadFile()
     HttpPara para;
     std::string strResponse;
     LibcurlHelper clientHttp;
-    para.strUrl = "http://127.0.0.1:10008/upload";
+    para.strUrl = "http://127.0.0.1:10011/upload";
     //para.strUrl = "http://127.0.0.1:8002/upload";
-    //std::string strFile = "test.jpg";
-    std::string strFile = "curlDemo.zip";
+    std::string strFile = "test.jpg";
+    //std::string strFile = "curlDemo.zip";
     int code = clientHttp.UploadFile(para, strFile, strResponse);
 
     std::cout << "code:" << code << "result:" << strResponse << std::endl;
@@ -106,13 +106,13 @@ void UploadFile1()
 
 int main()
 {
-    DownloadFile();
+    //DownloadFile();
     //DownloadBigFile();
     //LocalTest();
 
     //DownloadMsiFile();
 
-    //UploadFile();
+    UploadFile();
     //DownloadFile();
     //UploadFile1();
 
