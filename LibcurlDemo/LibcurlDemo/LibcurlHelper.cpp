@@ -182,14 +182,12 @@ int LibcurlHelper::Post(const HttpPara& paraHttp, const std::string& strData, st
     curl_easy_setopt(pCurl,CURLOPT_URL, paraHttp.strUrl.c_str());
     curl_easy_setopt(pCurl,CURLOPT_POST, true);
 
-    /* struct curl_slist pCurl_slist_append(struct curl_slist * list, const char * string);
-    @ 添加Http消息头
-    @ 属性string：形式为name+": "+contents
-    */
-    curl_slist *pList = set_header(paraHttp.vecHeaders);
+    curl_slist *pHeaderList;
+    fill_header(paraHttp.nType, pHeaderList);
     /* CURLcode curl_easy_setopt(CURL *handle, CURLoption option, parameter);
     @ 设置属性及常用参数
     */
+    curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, pHeaderList);
     curl_easy_setopt(pCurl,CURLOPT_SSL_VERIFYPEER, false);	//证书验证
     curl_easy_setopt(pCurl,CURLOPT_SSL_VERIFYHOST, false);	//ssl算法验证
     curl_easy_setopt(pCurl,CURLOPT_USERNAME, "test");
@@ -204,10 +202,8 @@ int LibcurlHelper::Post(const HttpPara& paraHttp, const std::string& strData, st
     curl_easy_setopt(pCurl,CURLOPT_TIMEOUT, m_nTimeout);
 
     CURLcode res = curl_easy_perform(pCurl);
-    if (pList)
-    {
-        curl_slist_free_all(pList);
-    }
+    if (pHeaderList)
+        curl_slist_free_all(pHeaderList);
     curl_easy_cleanup(pCurl);
 
     return res;
@@ -258,7 +254,8 @@ int LibcurlHelper::UploadFile(const HttpPara& paraHttp, const std::string& strFi
 int LibcurlHelper::PostFormData(const HttpPara& paraHttp, const curl_httppost* pData, const std::string& strResponse)
 {
     CURL *pCurl = curl_easy_init();
-
+    curl_slist *pHeaderList = set_header(paraHttp.vecHeaders);
+    curl_easy_setopt(pCurl, CURLOPT_HTTPHEADER, pHeaderList);
     curl_easy_setopt(pCurl, CURLOPT_URL, paraHttp.strUrl.c_str());
     curl_easy_setopt(pCurl, CURLOPT_HTTPPOST, pData);
     curl_easy_setopt(pCurl, CURLOPT_READFUNCTION, NULL);
@@ -427,31 +424,33 @@ int LibcurlHelper::DownloadBigFile(const HttpPara& paraHttp, const std::string& 
     return 0;
 }
 
-void LibcurlHelper::get_header_type(int nType, std::string& strHeader)
+void LibcurlHelper::fill_header(ContentType nType, curl_slist*& pHeader)
 {
+    const char *pBuffer = nullptr;
     switch (nType)
     {
     case kContentTypeTxt:
-        strHeader = "Content-Type: text/plain";
+        pBuffer = "Content-Type: text/plain";
         break;
     case kContentTypeHtml:
-        strHeader = "Content-Type: text/html";
+        pBuffer = "Content-Type: text/html";
         break;
     case kContentTypeXml:
-        strHeader = "Content-Type: text/xml";
+        pBuffer = "Content-Type: text/xml";
         break;
     case kContentTypeJson:
-        strHeader = "Content-Type: application/json";
+        pBuffer = "Content-Type: application/json";
         break;
     case kContentTypeUrlencoded:
-        strHeader = "Content-Type: x-www-form-urlencoded";
+        pBuffer = "Content-Type: application/x-www-form-urlencoded";
         break;
     case kContentTypeZip:
-        strHeader = "Content-Type: application/zip";
+        pBuffer = "Content-Type: application/zip";
     default:
-        strHeader = "Content-Type: application/octet-stream";
+        pBuffer = "Content-Type: application/octet-stream";
         break;
     }
+    pHeader= curl_slist_append(pHeader, pBuffer);
 }
 
 curl_slist* LibcurlHelper::set_header(const std::vector<std::string>& vecHeaders)

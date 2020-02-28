@@ -1,6 +1,10 @@
 #include <iostream>
+#include <sstream>
+#include <rapidjson/document.h>
+#include <rapidjson/writer.h>
 #include "LibcurlHelper.h"
 #include "httpclient.h"
+#include "Conversion.h"
 
 void DownloadFile()
 {
@@ -104,15 +108,92 @@ void UploadFile1()
     std::cout << "code:" << code << "result:" << strResponse << std::endl;
 }
 
+void InvokeHttp()
+{
+    HttpPara para;
+    std::string strResponse;
+    LibcurlHelper clientHttp;
+    para.strUrl = "http://127.0.0.1:10009/Login";
+    //para.strUrl = "http://127.0.0.1:8002/upload";
+    std::string strFile = "{\"username\":\"admin\",\"password\":\"0192023a7bbd73250516f069df18b500\"}";
+    //std::string strFile = "curlDemo.zip";
+    int code = clientHttp.Post(para, strFile, strResponse);
+
+    std::cout << "code:" << code << "\nresult:" << strResponse << std::endl;
+}
+
+std::string WrapMsg()
+{
+    std::string strName = "摄像头";
+    std::string strNameUtf8 = Gbk2Utf8(strName);
+    std::string strRtsp = "rtsp://admin:admin123@172.0.0.1:1935/live/test";
+    rapidjson::Document doc(rapidjson::kObjectType);
+    rapidjson::Document::AllocatorType &typeAllocate = doc.GetAllocator();
+    /*
+        {
+	    "session": "session",
+	    "name": "摄像头8",
+	    "rtsp": "rtsp://admin:admin123@172.0.0.1:1935/live/test",
+	    "type": 0,
+	    "remark": ""
+        }
+    */
+    doc.AddMember("session", rapidjson::Value("", typeAllocate), typeAllocate);
+    doc.AddMember("name", rapidjson::Value(strNameUtf8.c_str(), typeAllocate), typeAllocate);
+    doc.AddMember("rtsp", rapidjson::Value(strRtsp.c_str(), typeAllocate), typeAllocate);
+    doc.AddMember("type", 0, typeAllocate);
+    doc.AddMember("remark", rapidjson::Value("", typeAllocate), typeAllocate);
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer>  writer(buffer);
+    doc.Accept(writer);
+   return buffer.GetString();
+}
+
+void AddCamera()
+{
+    HttpPara para;
+    std::string strResponse;
+    LibcurlHelper clientHttp;
+    para.strUrl = "http://127.0.0.1:10009/AddCamera";
+    std::string strData = WrapMsg();
+    int code = clientHttp.Post(para, strData, strResponse);
+
+    std::cout << "code:" << code << "\nresult:" << strResponse << std::endl;
+}
+
+void InvokeXWwwFormUrlEncoded()
+{
+    HttpPara para;
+    std::string strResponse;
+    para.vecHeaders.push_back("Content-Type: x-www-form-urlencoded");
+    LibcurlHelper clientHttp;
+    para.strUrl = "http://127.0.0.1:10009/Login";
+    std::string strData;
+    {
+        // 如果是base64数据，需要url encode
+        std::stringstream ss;
+        ss << "data=" << "123" << "&";
+        ss << "name=" << "234" << "&";
+        strData = ss.str();
+    }
+    //std::string strData = "data=123&name=234";
+    int nErr = clientHttp.Post(para, strData, strResponse);
+    std::cout << "code:" << nErr << ",msg:" << strResponse;
+}
+
 int main()
 {
+    InvokeXWwwFormUrlEncoded();
+    //AddCamera();
+    //InvokeHttp();
     //DownloadFile();
     //DownloadBigFile();
     //LocalTest();
 
     //DownloadMsiFile();
 
-    UploadFile();
+    //UploadFile();
     //DownloadFile();
     //UploadFile1();
 

@@ -24,6 +24,7 @@ struct HttpPara
     std::string strCertificate;
     std::string strUser;
     std::string strPassword;
+    ContentType nType = kContentTypeJson;
 };
 
 struct FileNodeInfo
@@ -72,7 +73,7 @@ public:
     int DownloadBigFile(const HttpPara& paraHttp, const std::string& strPath = "", const std::string& strFileName = "", int nThread = 1);
 
 private:
-    void get_header_type(int nType, std::string& strHeader);
+    void fill_header(ContentType nType, curl_slist*& pHeader);
     curl_slist* set_header(const std::vector<std::string>& vecHeaders);
     int64_t get_download_file_length(const HttpPara& paraHttp, std::string& strRemoteFileName);
     std::string generate_filename(const std::string& strUrl, const std::string& strCustonFile, const std::string& strFileInfo);
